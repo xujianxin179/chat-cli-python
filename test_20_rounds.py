@@ -14,6 +14,7 @@ from main import (
 BASE_DIR = Path(__file__).resolve().parent
 RESULTS_FILE = BASE_DIR / "test_results.md"
 
+# 20 个测试问题：包含记忆、算术、总结等，用于验证多轮上下文
 PROMPTS = [
     "你好",
     "请记住我的名字叫小明",
@@ -48,9 +49,11 @@ def main() -> int:
     errors = []
 
     for index, prompt in enumerate(PROMPTS, start=1):
+        # 与真实 CLI 一致：先加入用户消息，再裁剪历史
         messages.append({"role": "user", "content": prompt})
         trim_history(messages)
 
+        # 每轮单独记录回复长度、Token 用量和错误信息
         row = {
             "round": index,
             "prompt": prompt,
@@ -76,9 +79,11 @@ def main() -> int:
                         errors.append(last_error)
                         messages.pop()
             if not row["error"]:
+                # 成功后把 assistant 回复写回历史，保证后续问题能参考前文
                 messages.append({"role": "assistant", "content": reply})
                 row["reply_length"] = len(reply)
                 if usage:
+                    # 累计整轮测试的 Token 消耗
                     row["prompt_tokens"] = usage.get("prompt_tokens", "-")
                     row["completion_tokens"] = usage.get("completion_tokens", "-")
                     row["total_tokens"] = usage.get("total_tokens", "-")
@@ -86,6 +91,7 @@ def main() -> int:
                     total_completion += int(row["completion_tokens"] or 0)
                     total_usage += int(row["total_tokens"] or 0)
         except Exception as exc:  # noqa: BLE001
+            # 外层兜底：处理重试逻辑之外的意外错误
             row["error"] = f"{type(exc).__name__}: {exc}"
             errors.append(row["error"])
             messages.pop()
@@ -105,12 +111,14 @@ def write_results(
     total_usage: int,
     error_count: int,
 ) -> None:
+    # 生成 Markdown 测试结果表，方便直接放进仓库或演示
     lines = [
         "# Day 6 连续 20 轮测试结果",
         "",
         "| 轮次 | 输入 | 回复字数 | prompt tokens | completion tokens | total tokens | 错误 |",
         "|---|---:|---:|---:|---:|---:|---|",
     ]
+    # 每个测试问题输出一行记录
     for row in rows:
         lines.append(
             f"| {row['round']} | {row['prompt']} | {row['reply_length']} | "
@@ -127,6 +135,7 @@ def write_results(
         f"- completion tokens 合计：{total_completion}",
         f"- total tokens 合计：{total_usage}",
     ]
+    # 结果文件用 UTF-8 保存，避免中文乱码
     RESULTS_FILE.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
