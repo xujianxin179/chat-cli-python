@@ -1,0 +1,8 @@
+# API 密钥，禁止提交
+.env
+.env.local
+
+# Python
+__pycache__/
+*.pyc
+.venv/
